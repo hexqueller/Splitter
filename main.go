@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-func OddOrEven(number int64) bool {
+func NumIsEven(number int64) bool {
 	return number%2 == 0
 }
 
@@ -41,6 +41,6 @@ func main() {
 	fmt.Printf("File: %s\n", filename)
 	fmt.Printf("Size: %d byte\n", size)
 
-	numOfcopyes := OddOrEven(size)
+	numOfcopyes := NumIsEven(size)
 	fmt.Printf("Number is Even : %t\n", numOfcopyes)
 }
