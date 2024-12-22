@@ -58,36 +58,69 @@ func SelectFromArray(options []int64) int64 {
 	}
 }
 
-func main() {
+func UserConfirm(prompt string) bool {
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		fmt.Printf("%s [y/n]: ", prompt)
+
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Input error, try again.")
+			continue
+		}
+
+		input = strings.TrimSpace(strings.ToLower(input))
+
+		if input == "" || input == "y" {
+			return true
+		} else if input == "n" {
+			return false
+		} else {
+			fmt.Println("Invalid choice, please enter 'y' or 'n'.")
+		}
+	}
+}
+
+func handleFileFlag() (string, os.FileInfo, error) {
 	filePath := flag.String("f", "", "Path to file")
 	flag.Parse()
 
 	if *filePath == "" {
-		fmt.Println("Usage: ./main.go -f file")
-		return
+		return "", nil, fmt.Errorf("usage: ./main.go -f file")
 	}
 
 	info, err := os.Stat(*filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			fmt.Println("File not found.")
-		} else {
-			fmt.Println("Error:", err)
+			return "", nil, fmt.Errorf("file not found")
 		}
-		return
+		return "", nil, fmt.Errorf("error: %v", err)
 	}
 
 	if info.IsDir() {
-		fmt.Println("File cant be directory.")
+		return "", nil, fmt.Errorf("file cannot be a directory")
+	}
+
+	return *filePath, info, nil
+}
+
+func main() {
+	filePath, info, err := handleFileFlag()
+	if err != nil {
+		fmt.Println(err)
 		return
 	}
 
-	filename := filepath.Base(*filePath)
+	filename := filepath.Base(filePath)
 	size := info.Size()
 
 	fmt.Printf("File: %s\n", filename)
 	fmt.Printf("Size: %d byte\n", size)
 
-	choice := SelectFromArray(Divisors(size))
-	fmt.Println(choice)
+	chunks := SelectFromArray(Divisors(size))
+
+	if UserConfirm(fmt.Sprintf("Split file into %d chunks of %d bytes", chunks, size/int64(chunks))) {
+		fmt.Println("TBD")
+	}
 }
