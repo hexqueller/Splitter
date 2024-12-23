@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -105,6 +106,50 @@ func handleFileFlag() (string, os.FileInfo, error) {
 	return *filePath, info, nil
 }
 
+func splitFileByParts(filePath string, numParts int64) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("error opening file: %w", err)
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("error getting file info: %w", err)
+	}
+	fileSize := fileInfo.Size()
+
+	partSize := fileSize / numParts
+	remainder := fileSize % numParts
+
+	buffer := make([]byte, partSize)
+
+	for i := int64(0); i < numParts; i++ {
+		currentPartSize := partSize
+		if i == numParts-1 {
+			currentPartSize += remainder
+		}
+
+		bytesRead, err := io.ReadFull(file, buffer[:currentPartSize])
+		if err != nil && err != io.EOF {
+			return fmt.Errorf("error reading file: %w", err)
+		}
+
+		partFileName := fmt.Sprintf("%s.part%d", filePath, i+1)
+		partFile, err := os.Create(partFileName)
+		if err != nil {
+			return fmt.Errorf("error creating part file: %w", err)
+		}
+
+		if _, err := partFile.Write(buffer[:bytesRead]); err != nil {
+			return fmt.Errorf("error writing to part file: %w", err)
+		}
+		partFile.Close()
+	}
+
+	return nil
+}
+
 func main() {
 	filePath, info, err := handleFileFlag()
 	if err != nil {
@@ -118,9 +163,13 @@ func main() {
 	fmt.Printf("File: %s\n", filename)
 	fmt.Printf("Size: %d byte\n", size)
 
-	chunks := SelectFromArray(Divisors(size))
+	parts := SelectFromArray(Divisors(size))
 
-	if UserConfirm(fmt.Sprintf("Split file into %d chunks of %d bytes", chunks, size/int64(chunks))) {
-		fmt.Println("TBD")
+	if UserConfirm(fmt.Sprintf("Split file into %d chunks of %d bytes", parts, size/int64(parts))) {
+		if err := splitFileByParts(filePath, parts); err != nil {
+			fmt.Println("Error:", err)
+		} else {
+			fmt.Println("File successfully split!")
+		}
 	}
 }
