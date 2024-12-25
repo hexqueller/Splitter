@@ -84,23 +84,19 @@ func UserConfirm(prompt string) bool {
 }
 
 func handleFileFlag() (string, os.FileInfo, error) {
-	filePath := flag.String("f", "", "Path to file")
+	filePath := flag.String("f", "", "Path to file or directory")
 	flag.Parse()
 
 	if *filePath == "" {
-		return "", nil, fmt.Errorf("usage: ./main.go -f file")
+		return "", nil, fmt.Errorf("usage: ./main.go -f file_or_directory")
 	}
 
 	info, err := os.Stat(*filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", nil, fmt.Errorf("file not found")
+			return "", nil, fmt.Errorf("path not found")
 		}
 		return "", nil, fmt.Errorf("error: %v", err)
-	}
-
-	if info.IsDir() {
-		return "", nil, fmt.Errorf("file cannot be a directory")
 	}
 
 	return *filePath, info, nil
@@ -150,23 +146,74 @@ func splitFileByParts(filePath string, numParts int64) error {
 	return nil
 }
 
+func mergeFileParts(partFilePath string) error {
+	dir := filepath.Dir(partFilePath)
+	baseName := strings.TrimSuffix(filepath.Base(partFilePath), filepath.Ext(partFilePath))
+	outputFileName := filepath.Join(dir, baseName)
+
+	partFiles, err := filepath.Glob(filepath.Join(dir, baseName+".part*"))
+	if err != nil {
+		return fmt.Errorf("error finding part files: %w", err)
+	}
+
+	sort.Strings(partFiles)
+
+	outputFile, err := os.Create(outputFileName)
+	if err != nil {
+		return fmt.Errorf("error creating output file: %w", err)
+	}
+	defer outputFile.Close()
+
+	for _, partFileName := range partFiles {
+		partFile, err := os.Open(partFileName)
+		if err != nil {
+			return fmt.Errorf("error opening part file %s: %w", partFileName, err)
+		}
+
+		if _, err := io.Copy(outputFile, partFile); err != nil {
+			partFile.Close()
+			return fmt.Errorf("error writing part file %s to output: %w", partFileName, err)
+		}
+
+		partFile.Close()
+	}
+
+	fmt.Println("Files successfully merged into", outputFileName)
+	return nil
+}
+
 func main() {
-	filePath, info, err := handleFileFlag()
+	path, info, err := handleFileFlag()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	filename := filepath.Base(filePath)
+	if strings.HasSuffix(path, ".part1") {
+		fmt.Printf("Detected part file: %s\n", path)
+		if UserConfirm("Merge parts into the original file?") {
+			if err := mergeFileParts(path); err != nil {
+				fmt.Println("Error merging files:", err)
+			}
+		}
+		return
+	}
+
+	if info.IsDir() {
+		fmt.Println("Directory input not supported for splitting.")
+		return
+	}
+
+	filename := filepath.Base(path)
 	size := info.Size()
 
 	fmt.Printf("File: %s\n", filename)
-	fmt.Printf("Size: %d byte\n", size)
+	fmt.Printf("Size: %d bytes\n", size)
 
 	parts := SelectFromArray(Divisors(size))
 
 	if UserConfirm(fmt.Sprintf("Split file into %d chunks of %d bytes", parts, size/int64(parts))) {
-		if err := splitFileByParts(filePath, parts); err != nil {
+		if err := splitFileByParts(path, parts); err != nil {
 			fmt.Println("Error:", err)
 		} else {
 			fmt.Println("File successfully split!")
