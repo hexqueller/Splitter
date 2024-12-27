@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,75 +23,60 @@ func Divisors(num int64) []int64 {
 			}
 		}
 	}
-
 	sort.Slice(divisors, func(i, j int) bool {
 		return divisors[i] < divisors[j]
 	})
-
 	return divisors
 }
 
 func SelectFromArray(options []int64) int64 {
 	reader := bufio.NewReader(os.Stdin)
-
 	for {
 		fmt.Println("Select a number from the list:")
 		for i, option := range options {
 			fmt.Printf("%d: %d\n", i+1, option)
 		}
-
 		fmt.Print("Choice: ")
-
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Println("Input error, try again.")
 			continue
 		}
-
 		input = strings.TrimSpace(input)
-
 		choice, err := strconv.Atoi(input)
 		if err != nil || choice < 1 || choice > len(options) {
 			fmt.Println("Wrong number, try again.")
 			continue
 		}
-
 		return options[choice-1]
 	}
 }
 
 func UserConfirm(prompt string) bool {
 	reader := bufio.NewReader(os.Stdin)
-
 	for {
 		fmt.Printf("%s [y/n]: ", prompt)
-
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Println("Input error, try again.")
 			continue
 		}
-
 		input = strings.TrimSpace(strings.ToLower(input))
-
-		if input == "" || input == "y" {
+		if input == "y" || input == "" {
 			return true
 		} else if input == "n" {
 			return false
-		} else {
-			fmt.Println("Invalid choice, please enter 'y' or 'n'.")
 		}
+		fmt.Println("Invalid choice, please enter 'y' or 'n'.")
 	}
 }
 
 func handleFileFlag() (string, os.FileInfo, error) {
 	filePath := flag.String("f", "", "Path to file or directory")
 	flag.Parse()
-
 	if *filePath == "" {
 		return "", nil, fmt.Errorf("usage: ./main.go -f file_or_directory")
 	}
-
 	info, err := os.Stat(*filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -98,7 +84,6 @@ func handleFileFlag() (string, os.FileInfo, error) {
 		}
 		return "", nil, fmt.Errorf("error: %v", err)
 	}
-
 	return *filePath, info, nil
 }
 
@@ -118,16 +103,15 @@ func splitFileByParts(filePath string, numParts int64) error {
 	partSize := fileSize / numParts
 	remainder := fileSize % numParts
 
-	buffer := make([]byte, partSize)
-
 	for i := int64(0); i < numParts; i++ {
 		currentPartSize := partSize
 		if i == numParts-1 {
 			currentPartSize += remainder
 		}
 
-		bytesRead, err := io.ReadFull(file, buffer[:currentPartSize])
-		if err != nil && err != io.EOF {
+		buffer := make([]byte, currentPartSize)
+		bytesRead, err := io.ReadFull(file, buffer)
+		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 			return fmt.Errorf("error reading file: %w", err)
 		}
 
@@ -156,7 +140,9 @@ func mergeFileParts(partFilePath string) error {
 		return fmt.Errorf("error finding part files: %w", err)
 	}
 
-	sort.Strings(partFiles)
+	sort.Slice(partFiles, func(i, j int) bool {
+		return extractPartNumber(partFiles[i]) < extractPartNumber(partFiles[j])
+	})
 
 	outputFile, err := os.Create(outputFileName)
 	if err != nil {
@@ -174,12 +160,21 @@ func mergeFileParts(partFilePath string) error {
 			partFile.Close()
 			return fmt.Errorf("error writing part file %s to output: %w", partFileName, err)
 		}
-
 		partFile.Close()
 	}
 
 	fmt.Println("Files successfully merged into", outputFileName)
 	return nil
+}
+
+func extractPartNumber(fileName string) int {
+	re := regexp.MustCompile(`\.part(\d+)$`)
+	matches := re.FindStringSubmatch(fileName)
+	if len(matches) == 2 {
+		number, _ := strconv.Atoi(matches[1])
+		return number
+	}
+	return 0
 }
 
 func main() {
