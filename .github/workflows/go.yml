@@ -22,7 +22,7 @@ jobs:
       run: go mod download
 
     - name: Build
-      run: CGO_ENABLED=0 GOOS=linux go build -o splitter main.go
+      run: CGO_ENABLED=0 GOOS=linux go build -o splitter cmd/splitter/main.go
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v3
