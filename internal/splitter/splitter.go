@@ -11,21 +11,15 @@ import (
 	"strings"
 )
 
-func SplitFileByParts(filePath string, numParts int64) error {
+func SplitFileByParts(filePath string, numParts int64, size int64) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("error opening file: %w", err)
 	}
 	defer file.Close()
 
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return fmt.Errorf("error getting file info: %w", err)
-	}
-	fileSize := fileInfo.Size()
-
-	partSize := fileSize / numParts
-	remainder := fileSize % numParts
+	partSize := size / numParts
+	remainder := size % numParts
 
 	for i := int64(0); i < numParts; i++ {
 		currentPartSize := partSize
@@ -99,4 +93,11 @@ func extractPartNumber(fileName string) int {
 		return number
 	}
 	return 0
+}
+
+func DeleteFile(filePath string) {
+	var err = os.Remove(filePath)
+	if err != nil {
+		panic(err)
+	}
 }

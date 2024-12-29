@@ -23,7 +23,10 @@ func handleFileFlag() (string, os.FileInfo, error) {
 		if os.IsNotExist(err) {
 			return "", nil, fmt.Errorf("path not found")
 		}
-		return "", nil, fmt.Errorf("error: %v", err)
+		return "", nil, err
+	}
+	if info.IsDir() {
+		return "", nil, fmt.Errorf("directory input not supported for splitting")
 	}
 	return *filePath, info, nil
 }
@@ -45,24 +48,18 @@ func main() {
 		return
 	}
 
-	if info.IsDir() {
-		fmt.Println("Directory input not supported for splitting.")
-		return
-	}
-
-	filename := filepath.Base(path)
 	size := info.Size()
-
-	fmt.Printf("File: %s\n", filename)
+	fmt.Printf("File: %s\n", filepath.Base(path))
 	fmt.Printf("Size: %d bytes\n", size)
 
 	parts := cli.SelectFromArray(math.Divisors(size))
 
 	if cli.UserConfirm(fmt.Sprintf("Split file into %d chunks of %d bytes", parts, size/int64(parts))) {
-		if err := splitter.SplitFileByParts(path, parts); err != nil {
+		if err := splitter.SplitFileByParts(path, parts, size); err != nil {
 			fmt.Println("Error:", err)
 		} else {
 			fmt.Println("File successfully split!")
+			splitter.DeleteFile(path)
 		}
 	}
 }
