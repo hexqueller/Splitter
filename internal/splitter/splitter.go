@@ -4,14 +4,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"strconv"
-	"strings"
+
+	"github.com/hexqueller/Splitter/internal/base64names"
 )
 
-func SplitFileByParts(filePath string, numParts int64, size int64) error {
+func SplitFileByParts(filePath string, numParts int64, size int64, fileName string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("error opening file: %w", err)
@@ -33,7 +30,7 @@ func SplitFileByParts(filePath string, numParts int64, size int64) error {
 			return fmt.Errorf("error reading file: %w", err)
 		}
 
-		partFileName := fmt.Sprintf("%s.part%d", filePath, i+1)
+		partFileName := base64names.EncodeBase64(fileName, int(i+1), int(numParts))
 		partFile, err := os.Create(partFileName)
 		if err != nil {
 			return fmt.Errorf("error creating part file: %w", err)
@@ -48,27 +45,14 @@ func SplitFileByParts(filePath string, numParts int64, size int64) error {
 	return nil
 }
 
-func MergeFileParts(partFilePath string) error {
-	dir := filepath.Dir(partFilePath)
-	baseName := strings.TrimSuffix(filepath.Base(partFilePath), filepath.Ext(partFilePath))
-	outputFileName := filepath.Join(dir, baseName)
-
-	partFiles, err := filepath.Glob(filepath.Join(dir, baseName+".part*"))
-	if err != nil {
-		return fmt.Errorf("error finding part files: %w", err)
-	}
-
-	sort.Slice(partFiles, func(i, j int) bool {
-		return extractPartNumber(partFiles[i]) < extractPartNumber(partFiles[j])
-	})
-
-	outputFile, err := os.Create(outputFileName)
+func MergeFileParts(sortedFilePaths []string, outputFilePath string) error {
+	outputFile, err := os.Create(outputFilePath)
 	if err != nil {
 		return fmt.Errorf("error creating output file: %w", err)
 	}
 	defer outputFile.Close()
 
-	for _, partFileName := range partFiles {
+	for _, partFileName := range sortedFilePaths {
 		partFile, err := os.Open(partFileName)
 		if err != nil {
 			return fmt.Errorf("error opening part file %s: %w", partFileName, err)
@@ -81,18 +65,8 @@ func MergeFileParts(partFilePath string) error {
 		partFile.Close()
 	}
 
-	fmt.Println("Files successfully merged into", outputFileName)
+	fmt.Println("Files successfully merged into", outputFilePath)
 	return nil
-}
-
-func extractPartNumber(fileName string) int {
-	re := regexp.MustCompile(`\.part(\d+)$`)
-	matches := re.FindStringSubmatch(fileName)
-	if len(matches) == 2 {
-		number, _ := strconv.Atoi(matches[1])
-		return number
-	}
-	return 0
 }
 
 func DeleteFile(filePath string) {

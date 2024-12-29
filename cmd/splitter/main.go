@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/hexqueller/Splitter/internal/base64names"
 	"github.com/hexqueller/Splitter/internal/cli"
+	"github.com/hexqueller/Splitter/internal/finder"
 	"github.com/hexqueller/Splitter/internal/math"
 	"github.com/hexqueller/Splitter/internal/splitter"
 )
@@ -37,29 +38,41 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+	fileName := filepath.Base(path)
+	if base64names.IsEncoded(fileName) {
+		name, partNumber, totalParts, err := base64names.DecodeBase64(fileName)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
-	if strings.HasSuffix(path, ".part1") {
-		fmt.Printf("Detected part file: %s\n", path)
-		if cli.UserConfirm("Merge parts into the original file?") {
-			if err := splitter.MergeFileParts(path); err != nil {
-				fmt.Println("Error merging files:", err)
+		if cli.UserConfirm(fmt.Sprintf("%s %d/%d  Merge parts?", name, partNumber, totalParts)) {
+			parts, err := finder.FindMissingParts(path)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			outputFilePath := filepath.Join(filepath.Dir(path), name)
+			err = splitter.MergeFileParts(parts, outputFilePath)
+			if err != nil {
+				fmt.Println(err)
+				return
 			}
 		}
-		return
-	}
+	} else {
+		size := info.Size()
+		fmt.Printf("File: %s\n", fileName)
+		fmt.Printf("Size: %d bytes\n", size)
 
-	size := info.Size()
-	fmt.Printf("File: %s\n", filepath.Base(path))
-	fmt.Printf("Size: %d bytes\n", size)
+		parts := cli.SelectFromArray(math.Divisors(size))
 
-	parts := cli.SelectFromArray(math.Divisors(size))
-
-	if cli.UserConfirm(fmt.Sprintf("Split file into %d chunks of %d bytes", parts, size/int64(parts))) {
-		if err := splitter.SplitFileByParts(path, parts, size); err != nil {
-			fmt.Println("Error:", err)
-		} else {
-			fmt.Println("File successfully split!")
-			splitter.DeleteFile(path)
+		if cli.UserConfirm(fmt.Sprintf("Split file into %d chunks of %d bytes", parts, size/int64(parts))) {
+			if err := splitter.SplitFileByParts(path, parts, size, fileName); err != nil {
+				fmt.Println("Error:", err)
+			} else {
+				fmt.Println("File successfully split!")
+				splitter.DeleteFile(path)
+			}
 		}
 	}
 }
