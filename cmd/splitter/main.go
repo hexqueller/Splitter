@@ -28,7 +28,6 @@ func handleFileFlag() (string, os.FileInfo, error) {
 	}
 	if info.IsDir() {
 		return "", nil, fmt.Errorf("directory input not supported for splitting")
-		return "", nil, err
 	}
 	if info.IsDir() {
 		return "", nil, fmt.Errorf("directory input not supported for splitting")
