@@ -23,7 +23,10 @@ func handleFileFlag() (string, os.FileInfo, error) {
 		if os.IsNotExist(err) {
 			return "", nil, fmt.Errorf("path not found")
 		}
-		return "", nil, fmt.Errorf("error: %v", err)
+		return "", nil, err
+	}
+	if info.IsDir() {
+		return "", nil, fmt.Errorf("directory input not supported for splitting")
 	}
 	return *filePath, info, nil
 }
@@ -42,11 +45,6 @@ func main() {
 				fmt.Println("Error merging files:", err)
 			}
 		}
-		return
-	}
-
-	if info.IsDir() {
-		fmt.Println("Directory input not supported for splitting.")
 		return
 	}
 
