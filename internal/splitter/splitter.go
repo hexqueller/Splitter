@@ -75,3 +75,9 @@ func DeleteFile(filePath string) {
 		panic(err)
 	}
 }
+
+func DeleteFileArray(parts []string) {
+	for _, path := range parts {
+		DeleteFile(path)
+	}
+}

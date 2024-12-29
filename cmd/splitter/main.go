@@ -61,6 +61,7 @@ func main() {
 				fmt.Println(err)
 				return
 			}
+			splitter.DeleteFileArray(parts)
 		}
 	} else {
 		size := info.Size()
