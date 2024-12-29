@@ -21,11 +21,20 @@ jobs:
     - name: Download Go modules
       run: go mod download
 
-    - name: Build
-      run: CGO_ENABLED=0 GOOS=linux go build -o splitter cmd/splitter/main.go
+    - name: Build for Linux
+      run: CGO_ENABLED=0 GOOS=linux go build -o splitter-linux cmd/splitter/main.go
 
-    - name: Upload Artifact
+    - name: Upload Linux Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: splitter
-        path: splitter
+        name: splitter-linux
+        path: splitter-linux
+
+    - name: Build for Windows
+      run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o splitter-windows.exe cmd/splitter/main.go
+
+    - name: Upload Windows Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: splitter-windows
+        path: splitter-windows.exe
